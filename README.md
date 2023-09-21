@@ -1,37 +1,23 @@
-Create a CMS using PHP OOPS and MySQL
-# User
-- Sign up/ Login page
-- Users can View Spaces, create Pages and sub-pages under that space
-- Create page - page title, add images, videos, tables, checkbox, text size and text color
-- Once completed the content, Publish button to publish the page
-- create subpages under pages with the same features
-- Option to give comment for a page
-- View all the other pages present in the space
+ETA-24hrs
 
-# Admin
-- To give permission for space access
-- To create spaces
-- View all the spaces, pages and sub-pages
-- View of all the users and the access for each space
+# STEP 1:
+- Creating a custom module to create a custom command that should get the file format and file path.
+- Adding profile option using InputOption and argument using InputArgument.
+- Eg: bin/magento customer:importer --profile='csv' sample.csv
+- For now we are using only two file formats- csv and json.
 
-# Project structure
-# User view:
+# STEP 2:
+- To read customer data in the csv and json files, we use two classes
+- Magento\Framework\Filesystem\Io\File for json and
+- Magento\Framework\File\Csv for csv files
+- Retrieve the values of the profile and source options/arguments.
+- Based on the profile option, determine whether to read a CSV or JSON file.
+- And then turn it into an array, and validate the file input
 
-- LoginPage.php: Login page for exisiting users
-- userPage.php: Lists all spaces
-- user_space_details.php: Lists all pages and subpages under the pages and If clicked on pages every content of it will get displayed, pages will contain comments under it
-- page_form.php: Create page button is clicked, it moves to this page and textarea to collect data from user and store in pages table
-- subpage_form.php: when the '+' button is clicked, it moves to this page and textarea to collect data from user and store in subpages table
+# STEP 3:
+- Push that data into the customer_entity table.
 
-# Admin view:
-- LoginPage.php: Login page for exisiting users
-- AdminLogin.php: credetials for admin
-- Admin.php: To create new spaces and lists spaces
-- Admin_space_details.php: Lists all pages and subpages list and give access for users
+# STEP 4:
+- Display the customer data in the admin panel 
+- Customer->all customers.
 
-# Database tables:
-- users: id, username, password, new-password, space_access
-- spaces: spaceId, spaceName, description
-- pages: page_id, content, spaceId, title
-- subpages: sub_id, content, page_id, title
-- comments: cmt_id, page_id, usr_cmt, cmt
