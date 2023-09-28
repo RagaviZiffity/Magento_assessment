@@ -6,18 +6,17 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
-use ImportCustomers\CustomCmd\Model\DataFactory;
+use Magento\Framework\File\Csv;
 
 class ImportData extends Command
-{ 
-    protected $dataFactory;
+{
+    protected $csvProcessor;
 
     public function __construct(
-            DataFactory $dataFactory)
-    {
-        $this->dataFactory = $dataFactory;
-        parent::__construct();      
-        
+        Csv $csvProcessor
+    ) {
+        $this->csvProcessor = $csvProcessor;
+        parent::__construct(); 
     }
     
     const profile = 'profile';
@@ -26,13 +25,13 @@ class ImportData extends Command
     {
         //In commandline to get profile options
         $options = [
-			new InputOption(
-				self::profile,
-				'-p',
-				InputOption::VALUE_REQUIRED,
-				'provide csv or json format'
-			)
-		];
+        new InputOption(
+            self::profile,
+            '-p',
+            InputOption::VALUE_REQUIRED,
+            'provide csv or json format'
+        )
+        ];
         $this->setName('customer:importer')
             ->setDescription('Import data of customer')
             ->setDefinition($options)
@@ -45,18 +44,37 @@ class ImportData extends Command
     {
         $profile = $input->getOption(self::profile);
         $source = $input->getArgument('source');
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $customerRepository = $objectManager->create('Magento\Customer\Api\CustomerRepositoryInterface');
 
         if ($profile === 'csv') {
-            $csvData= $this->readCSV($source, $output);
-            foreach ($csvData as $data) {
-                $this->saveCustomerToDatabase($data, $profile);
+            $csvData = $this->csvProcessor->getData($source);
+            if($csvData == null) {
+                $output->writeln("<error>Error reading CSV file.</error>");
+                return 1;
             }
+            $output->writeln("<info>Data loaded successfully.</info>");
+            foreach ($csvData as $data) 
+            {
+                $customer = $objectManager->create('Magento\Customer\Api\Data\CustomerInterface');
+                $customer->setFirstname($data['0']);
+                $customer->setLastname($data['1']);
+                $customer->setEmail($data['2']);
+                $customerRepository->save($customer);
+            }
+            $output->writeln("<info>Customer imported successfully.</info>");
         } 
         elseif ($profile === 'json') {
             $jsonData = $this->readJSON($source, $output);
-            foreach ($jsonData as $data) {
-                $this->saveCustomerToDatabase($data, $profile);
+            foreach ($jsonData as $data) 
+            {
+                $customer = $objectManager->create('Magento\Customer\Api\Data\CustomerInterface');
+                $customer->setFirstname($data['fname']);
+                $customer->setLastname($data['lname']);
+                $customer->setEmail($data['emailaddress']);
+                $customerRepository->save($customer);
             }
+            $output->writeln("<info>Customer imported successfully.</info>");
         } 
 
         else {
@@ -67,58 +85,15 @@ class ImportData extends Command
         return 0; // Return 0 to indicate a successful execution.
     }
 
-    private function readCSV($csvFile, OutputInterface $output)
-    {
-        //To read csv file
-        $data = [];
-        if (($handle = fopen($csvFile, 'r')) !== false) {
-            while (($row = fgetcsv($handle)) !== false) {
-                $data[] = $row;
-            }
-            fclose($handle);
-        }
-        if($data == null)
-        {
-            $output->writeln("<error>Error reading CSV file.</error>");
-            return 1;
-        }
-        $output->writeln("<info>Data loaded successfully.</info>");
-        return $data;
-    }
-
     private function readJSON($jsonFile, OutputInterface $output)
     {
         $jsonContent = file_get_contents($jsonFile);
         $data= json_decode($jsonContent, true);
-        if($data == null)
-        {
+        if($data == null) {
             $output->writeln("<error>Error reading json file.</error>");
             return 1;
         }
         $output->writeln("<info>Data loaded successfully.</info>");
         return $data;
-    }
-
-    protected function saveCustomerToDatabase($data, $profile)
-    {
-        //using model saving the readed file in the table
-        if($profile === 'json'){
-            $mappedData = [
-                'firstname' => $data['fname'],
-                'lastname' => $data['lname'],
-                'email' => $data['emailaddress'],
-            ];
-        }
-        else
-        {
-            $mappedData = [
-                'firstname' => $data['0'],
-                'lastname' => $data['1'],
-                'email' => $data['2'],
-            ];
-        }
-        $customerModel = $this->dataFactory->create();
-        $customerModel->setData($mappedData);
-        $customerModel->save();
     }
 }
